@@ -1,0 +1,177 @@
+Claro\! Aqui está o texto formatado em Markdown, ideal para ser usado em documentações, READMEs ou wikis.
+
+-----
+
+Olá\! Com certeza posso te ajudar a estruturar um pipeline de CI/CD para o seu projeto. É uma ótima iniciativa para automatizar e dar mais segurança às suas entregas.
+
+Dado o seu cenário (API com Lambda/API Gateway, infraestrutura em Terraform e código no GitHub), a abordagem mais comum e recomendada é usar o **GitHub Actions**. Ele se integra perfeitamente ao seu repositório e tem um ecossistema robusto para interagir com a AWS e o Terraform.
+
+Vou te guiar passo a passo sobre o que está faltando e como construir esse pipeline.
+
+## O que está faltando?
+
+Essencialmente, o que falta é o "cérebro" que conecta suas ações (um `git push`, por exemplo) com os processos de build, teste e deploy. Este cérebro será um arquivo de workflow do GitHub Actions.
+
+Para que o GitHub Actions possa interagir com sua conta AWS de forma segura, também precisaremos configurar a autenticação.
+
+## Plano de Ação
+
+Vou te fornecer um plano completo e o código do workflow. A ideia geral é:
+
+1.  **Configurar a Autenticação Segura**: Criar uma forma do GitHub se autenticar na sua conta AWS sem precisar de chaves de acesso fixas (que não é uma boa prática de segurança). Usaremos o OIDC (OpenID Connect), que é o método moderno e seguro.
+2.  **Criar o Workflow do GitHub Actions**: Definir um arquivo YAML que descreve os passos do pipeline.
+3.  **Detalhar os Passos do Pipeline**:
+      * **Trigger**: O pipeline será acionado a cada `push` na branch `main` ou em cada `pull request` para a `main`.
+      * **Build**: Compilar e empacotar o código da sua função Lambda em um arquivo `.zip`.
+      * **Test**: Rodar testes unitários (vou deixar um passo de exemplo).
+      * **Deploy**: Usar o Terraform para planejar e aplicar a infraestrutura, utilizando o `.zip` do Lambda gerado no passo de build.
+
+### Passo 1: Configurar a Autenticação (OIDC na AWS)
+
+Esta é a única parte que você precisa fazer manualmente na sua conta AWS.
+
+1.  No seu console da AWS, vá para **IAM -\> Identity Providers**.
+2.  Adicione um provedor do tipo **OpenID Connect**.
+3.  Para "Provider URL", coloque `https://token.actions.githubusercontent.com`.
+4.  Para "Audience", coloque `sts.amazonaws.com`.
+5.  Depois de criar o provedor, vá para **IAM -\> Roles** e crie uma nova role.
+6.  Selecione "Web identity" e escolha o provedor que você acabou de criar. A "Audience" será `sts.amazonaws.com`.
+7.  Para "GitHub organization" e "GitHub repository", preencha com os seus dados. Ex: `meu-usuario/meu-repositorio`. Você pode usar `*` para permitir qualquer repositório, se preferir.
+8.  Anexe as permissões que o Terraform precisa para criar os recursos (ex: `AdministratorAccess` para começar, mas o ideal é restringir para apenas o necessário: S3, Lambda, API Gateway, IAM, etc.).
+9.  Dê um nome à role (ex: `GitHubActions-Terraform-DeployRole`) e salve.
+10. Copie o ARN da role que você criou. Ele se parecerá com `arn:aws:iam::123456789012:role/GitHubActions-Terraform-DeployRole`.
+
+### Passo 2: Adicionar o ARN da Role no GitHub
+
+1.  No seu repositório GitHub, vá em **Settings -\> Secrets and variables -\> Actions**.
+2.  Crie um novo "repository secret" com o nome `AWS_ROLE_TO_ASSUME`.
+3.  No valor, cole o ARN da role que você copiou no passo anterior.
+
+### Passo 3: Criar o Arquivo do Workflow
+
+Agora, a parte do código. Você precisa criar a seguinte estrutura de diretórios e o arquivo no seu repositório:
+
+`.github/workflows/ci-cd.yml`
+
+Aqui está o código completo para o arquivo `ci-cd.yml`. Ele assume que o código da sua Lambda está em uma pasta `src/lambda` e seus arquivos do Terraform estão em `src/terraform`. **Ajuste esses caminhos se necessário.**
+
+```yaml
+# .github/workflows/ci-cd.yml
+
+name: CI/CD Pipeline AWS com Terraform
+
+# Triggers: roda em push para a main ou em PRs para a main
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+# Permissões necessárias para autenticação OIDC com a AWS
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. Checkout do código do repositório
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Configurar credenciais AWS usando OIDC
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: us-east-1 # <-- MUDE PARA A SUA REGIÃO
+
+      # 3. Setup do Node.js (se sua Lambda for Node.js)
+      # Se for Python, use actions/setup-python@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      # 4. Build da Função Lambda
+      - name: Build Lambda Function
+        # Assumindo que o código da lambda está em 'src/lambda'
+        # e o package.json está lá.
+        run: |
+          cd src/lambda 
+          npm install
+          zip -r ../../lambda_function.zip .
+
+      # 5. Rodar Testes (Exemplo)
+      - name: Run Unit Tests
+        run: |
+          # Se você tiver testes, rode o comando aqui. Ex:
+          # cd src/lambda
+          # npm test
+          echo "Passo de teste - implementar aqui."
+
+      # 6. Setup do Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      # 7. Terraform Init
+      - name: Terraform Init
+        id: init
+        # Assumindo que os arquivos .tf estão em 'src/terraform'
+        run: terraform -chdir=src/terraform init
+
+      # 8. Terraform Plan
+      - name: Terraform Plan
+        id: plan
+        # O -var passa o caminho do zip do lambda para o Terraform
+        run: terraform -chdir=src/terraform plan -out=tfplan -var="lambda_zip_path=../../lambda_function.zip"
+        
+      # 9. Terraform Apply (APENAS em push para a main)
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform -chdir=src/terraform apply -auto-approve tfplan
+```
+
+### Passo 4: Conectar o Terraform com o Build do Lambda
+
+No seu código Terraform (`.tf`), você precisa declarar uma variável para receber o caminho do arquivo zip e usá-la no recurso `aws_lambda_function`.
+
+Adicione em algum lugar nos seus arquivos `.tf`:
+
+```terraform
+variable "lambda_zip_path" {
+  description = "Caminho para o arquivo .zip da função Lambda"
+  type        = string
+}
+```
+
+E no recurso da sua função Lambda, use essa variável:
+
+```terraform
+resource "aws_lambda_function" "minha_lambda" {
+  # ... outras configurações da lambda ...
+  
+  filename         = var.lambda_zip_path
+  source_code_hash = filebase64sha256(var.lambda_zip_path)
+
+  # ...
+}
+```
+
+## Resumo e Próximos Passos
+
+  * **Ação Manual**: Crie a Role no IAM da AWS para autenticação OIDC e pegue o ARN.
+  * **No GitHub**: Adicione o ARN como um secret chamado `AWS_ROLE_TO_ASSUME`.
+  * **No seu Código**:
+      * Crie o arquivo `.github/workflows/ci-cd.yml` com o conteúdo que forneci.
+      * Ajuste os caminhos (`src/lambda`, `src/terraform`) e a `aws-region` no arquivo YAML para bater com a sua estrutura.
+      * Adicione a `variable "lambda_zip_path"` no seu código Terraform.
+      * Atualize seu recurso `aws_lambda_function` para usar `filename = var.lambda_zip_path`.
+
+Depois de fazer isso, a cada `push` para a branch `main`, o GitHub Actions irá automaticamente construir seu Lambda, 
+rodar os testes e aplicar a infraestrutura com o Terraform. 
+Em um `pull request`, ele fará tudo, exceto o `terraform apply`, permitindo que você revise o plano antes de fazer o merge.
