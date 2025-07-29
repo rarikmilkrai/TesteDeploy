@@ -1,0 +1,15 @@
+{
+    "operation": "update",
+    "payload": {
+        "Key": {
+            "id": "1234ABCD"
+        },
+        "UpdateExpression": "SET #num = #num + :inc",
+        "ExpressionAttributeNames": {
+            "#num": "number"
+        },
+        "ExpressionAttributeValues": {
+            ":inc": 1
+        }
+    }
+}

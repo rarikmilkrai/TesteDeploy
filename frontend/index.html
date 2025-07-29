@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Cloud Resume</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://www.w3schools.com/w3css/5/w3.css">
+</head>
+<body class="w3-content" style="max-width:1300px">
+
+<!-- First Grid: Logo & About -->
+<div class="w3-row">
+  <div class="w3-half w3-black w3-container w3-center" style="height:700px">
+    <div class="w3-padding-64">
+      <h1>My Cloud Challenge Resume</h1>
+    </div>
+    <div class="w3-padding-64">
+      <a href="#" class="w3-button w3-black w3-block w3-hover-blue-grey w3-padding-16">Home</a>
+      <a href="#work" class="w3-button w3-black w3-block w3-hover-teal w3-padding-16">The Challenge</a>
+     <a href="#work" class="w3-button w3-black w3-block w3-hover-dark-grey w3-padding-16">Resume</a>
+      <a href="#contact" class="w3-button w3-black w3-block w3-hover-brown w3-padding-16">Contact</a>
+    </div>
+  </div>
+  <div class="w3-half w3-blue-grey w3-container" style="height:700px">
+    <div class="w3-padding-64 w3-center">
+      <h1>About Me</h1>
+      <img src="assets/allan.jpeg" class="w3-margin w3-circle" alt="Person" style="width:40%">
+      <div class="w3-left-align w3-padding-large">
+        <p>My name is Allan, a future Cloud Engineer, I am from Brazil, São Paulo. I am nice person and like memes.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Second Grid: Work & Resume -->
+<div class="w3-row">
+  <div class="w3-half w3-light-grey w3-center" style="min-height:800px" id="work">
+    <div class="w3-padding-64">
+      <h2>The Challenge</h2>
+      <p>The Cloud Challenge Resume is cloud project for those who really wants to get the hands dirty with cloud computing.</p>
+      <p>The goal is to create webpage to display your resume with a visitors counter.The count has to be stored in a database.</p>
+      <p>In this blog post, I wrote the details behind project</p>
+      <p>Here is the GitHub of the project, here you can find the frontend, backend and Infrastructure as code pieces.</p>
+
+      </p>
+    </div><br>
+  </div>
+  <div class="w3-half w3-indigo w3-container" style="min-height:800px">
+    <div class="w3-padding-64 w3-center">
+      <h2>Resume</h2>
+      <div class="w3-container w3-responsive">
+        <table class="w3-table">
+          <tr>
+            <th>Year</th>
+            <th>Title</th>
+            <th>Where</th>
+          </tr>
+          <tr class="w3-white">
+            <td>2022-2024</td>
+            <td>IT Analyst</td>
+            <td>Accenture</td>
+          </tr>
+          <tr>
+            <td>2018-2022</td>
+            <td>Network Analyst</td>
+            <td>Latitude.sh</td>
+          </tr>
+          <tr class="w3-white">
+            <td>2024</td>
+            <td>AWS Solutions Architect Associate</td>
+            <td>Brazil</td>
+          </tr>
+          <tr>
+            <td>2023</td>
+            <td>AWS Cloud Practitioner</td>
+            <td>Brazil</td>
+          </tr>
+          <tr class="w3-white">
+            <td>2012-2014</td>
+            <td>Degree in Computer Networks</td>
+            <td>IBTA, Brazil, SP</td>
+          </tr>
+
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Third Grid: Swing By & Contact -->
+<div class="w3-row" id="contact">
+  <div class="w3-half w3-dark-grey w3-container w3-center" style="height:700px">
+    <div class="w3-padding-64">
+      <h1>Skills</h1>
+    </div>
+    <div class="w3-padding-64">
+      <p>Python, Java, HTML and CSS
+      <p>DNS and HTTPS</p>
+      <p>API and Database</p>
+      <p>Infrastructure as Code</p>
+    </div>
+  </div>
+  <div class="w3-half w3-teal w3-container" style="height:700px">
+    <div class="w3-padding-64 w3-padding-large">
+      <h1>Contact</h1>
+      
+      <p><img src="assets/email-icon-png-transparent-0.jpg" width="40" height="40"> <a href="allan_zan@hotmail.com">allan_zan@hotmail.com</a></p>
+      <p><img src="assets/linkedin_icon.png" width="40" height="40"> <a href="https://www.linkedin.com/in/allan-zanella/">Linkedin</a></p>
+      
+    </div>
+  </div>
+</div>
+
+<script src="fetch_post.js"></script>
+    <script>
+      fetch('https://xcquof1gs4.execute-api.us-east-1.amazonaws.com/GET/DynamoDBOperations', {
+         method: 'POST',
+         headers: {
+            'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({"operation": "read", "payload": {"Key": {"id": "visitors"}}})
+      })
+      .then(response => response.json())
+      .then(data => {
+      let number = (data.Item.number)
+      document.getElementById("visitors").textContent = "visitors: " + number})
+   </script>
+
+<!-- Footer -->
+<footer class="w3-container w3-black w3-padding-16">
+  <p id="visitors"></p>
+</footer>
+
+</body>
+</html>
